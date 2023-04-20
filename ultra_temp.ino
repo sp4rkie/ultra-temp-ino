@@ -180,7 +180,6 @@ void
 setup()
 {
     Serial.begin(115200);
-    analogReadResolution(ADC2VCC_RES);
 #ifdef TEMPRA
     sensors.begin();                                        // async start, don't move
     sensors.setWaitForConversion(0);
@@ -256,7 +255,12 @@ loop()
     if (mysend(cmd, TARGET_HOST, TARGET_PORT, &temp_ext)) {
 if (DEBUG) Serial.printf("mysend failed\n");
     }
-if (DEBUG) Serial.printf("<UBAT: %u>\n", _UBAT = analogReadMilliVolts(ADC2VCC_PIN));
+    /*
+     * 4069 AT 2.90V VCC
+     * 3984 AT 2.80V VCC
+     * 3839 AT 2.70V VCC
+     */
+if (DEBUG) Serial.printf("<UBAT: %u>\n", _UBAT = analogRead(ADC2VCC_PIN));
 if (DEBUG) Serial.printf("<TP04: %u>\n", _TP04 = millis());   // typical TP04: 253 on esp32_1
     if (strcmp(temp_ext, "OTA")) {
         esp_wifi_stop();
