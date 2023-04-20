@@ -180,6 +180,7 @@ void
 setup()
 {
     Serial.begin(115200);
+    analogReadResolution(ADC2VCC_RES);
 #ifdef TEMPRA
     sensors.begin();                                        // async start, don't move
     sensors.setWaitForConversion(0);
@@ -202,6 +203,7 @@ setup()
 
 RTC_DATA_ATTR _u32 _TP04;
 RTC_DATA_ATTR _u32 _TP05;
+RTC_DATA_ATTR _u32 _UBAT;
 
 void 
 loop() 
@@ -242,13 +244,19 @@ loop()
 #ifdef TEMPRA
 //  snprintf(cmd, _SZ(cmd), "@temp" "@temp_" HOST "=" "%s", temp_int);
     // ATTENTION: WiFi might not always been connected for WiFi.RSSI() to be valid at this point:
-    snprintf(cmd, _SZ(cmd), "@temp" "@temp_" HOST "=" "%s/%d/%u/%u", temp_int, WiFi.RSSI(), _TP04, _TP05);
+    snprintf(cmd, _SZ(cmd), "@temp" "@temp_" HOST "=" "%s/%d/%u/%u/%u", 
+                                                      temp_int, 
+                                                      WiFi.RSSI(), 
+                                                      _TP04, 
+                                                      _TP05, 
+                                                      _UBAT);
 #else
     snprintf(cmd, _SZ(cmd), "@temp");
 #endif
     if (mysend(cmd, TARGET_HOST, TARGET_PORT, &temp_ext)) {
 if (DEBUG) Serial.printf("mysend failed\n");
     }
+if (DEBUG) Serial.printf("<UBAT: %u>\n", _UBAT = analogReadMilliVolts(ADC2VCC_PIN));
 if (DEBUG) Serial.printf("<TP04: %u>\n", _TP04 = millis());   // typical TP04: 253 on esp32_1
     if (strcmp(temp_ext, "OTA")) {
         esp_wifi_stop();
