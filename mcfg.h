@@ -8,6 +8,8 @@
 #define BUTTON 2                    // choose button to trigger wakeup
 #endif
 
+#define ADC2VCC_PIN     36
+
 #define WIFI0_SSID      ""
 #define WIFI0_PASSWORD  ""
 
