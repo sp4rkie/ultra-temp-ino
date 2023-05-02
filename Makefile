@@ -30,7 +30,7 @@ else ifneq ($(findstring esp32-8 ,$(MAKECMDGOALS)),)
     ultra_temp.ino.cpp_CFLAGS = -DESP32_8 -fpermissive
 endif
 
-ultra_temp.ino.cpp_CFLAGS += -DMCFG_LOCAL
+#ultra_temp.ino.cpp_CFLAGS += -DMCFG_LOCAL
 
 ifeq ($(OTA_ADDR),)
     $(error params wrong or missing: make <machine> <target>)

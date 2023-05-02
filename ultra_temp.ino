@@ -198,6 +198,9 @@ setup()
     ep_x = (D_WIDTH - tbw) / 2 - tbx;              
     ep_y0 = (D_HEIGHT - tbh * 2) / 3     - tby;
     ep_y1 = (D_HEIGHT - tbh * 2) / 3 * 2 - tby + tbh;
+
+    pinMode(ADC2GND_PIN, OUTPUT);
+    digitalWrite(ADC2GND_PIN, 0);
 }
 
 RTC_DATA_ATTR _u32 _TP04;
@@ -260,7 +263,7 @@ if (DEBUG) Serial.printf("mysend failed\n");
      * 3984 AT 2.80V VCC
      * 3839 AT 2.70V VCC
      */
-if (DEBUG) Serial.printf("<UBAT: %u>\n", _UBAT = analogRead(ADC2VCC_PIN));
+if (DEBUG) Serial.printf("<UBAT: %umV>\n", _UBAT = analogReadMilliVolts(ADC2VCC_PIN));
 if (DEBUG) Serial.printf("<TP04: %u>\n", _TP04 = millis());   // typical TP04: 253 on esp32_1
     if (strcmp(temp_ext, "OTA")) {
         esp_wifi_stop();
