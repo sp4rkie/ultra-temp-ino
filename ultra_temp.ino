@@ -36,8 +36,12 @@
 
 #ifdef ESP32_4                          // -> new test dev
 #define DEBUG   1
+#define VBAT_ADC1_GND_PIN    22              // use a dynamic ground to effectively void its deep sleep current
+#define VBAT_ADC1_SENSE_PIN  36
 #else
 #define DEBUG   1
+#define VBAT_ADC1_GND_PIN    22              // use a dynamic ground to effectively void its deep sleep current
+#define VBAT_ADC1_SENSE_PIN  36
 #endif
 
 #define TEMPRA 32                       // one wire pin
@@ -196,10 +200,11 @@ setup()
     ep_y0 = (D_HEIGHT - tbh * 2) / 3     - tby;
     ep_y1 = (D_HEIGHT - tbh * 2) / 3 * 2 - tby + tbh;
 
-    pinMode(ADC2GND_PIN, OUTPUT);
-    digitalWrite(ADC2GND_PIN, 0);
+    pinMode(VBAT_ADC1_GND_PIN, OUTPUT);
+    digitalWrite(VBAT_ADC1_GND_PIN, 0);
 }
 
+RTC_DATA_ATTR _i32 _RSSI;
 RTC_DATA_ATTR _u32 _TP04;
 RTC_DATA_ATTR _u32 _TP05;
 RTC_DATA_ATTR _u32 _UBAT;
@@ -242,17 +247,16 @@ loop()
 
 #ifdef TEMPRA
 //  snprintf(cmd, _SZ(cmd), "@temp" "@temp_" HOST "=" "%s", temp_int);
-    // ATTENTION: WiFi might not always been connected for WiFi.RSSI() to be valid at this point:
     snprintf(cmd, _SZ(cmd), "@temp" "@temp_" HOST "=" "%s/%d/%u/%u/%u", 
                                                       temp_int, 
-                                                      WiFi.RSSI(), 
+                                                      _RSSI, 
                                                       _TP04, 
                                                       _TP05, 
                                                       _UBAT);
 #else
     snprintf(cmd, _SZ(cmd), "@temp");
 #endif
-    if (mysend(cmd, TARGET_HOST, TARGET_PORT, &temp_ext)) {
+    if (mysend(cmd, STD_TARGET_HOST, STD_TARGET_PORT, &temp_ext)) {
 if (DEBUG) Serial.printf("mysend failed\n");
     }
     /*
@@ -260,7 +264,8 @@ if (DEBUG) Serial.printf("mysend failed\n");
      * 3984 AT 2.80V VCC
      * 3839 AT 2.70V VCC
      */
-if (DEBUG) Serial.printf("<UBAT: %umV>\n", _UBAT = analogReadMilliVolts(ADC2VCC_PIN));
+if (DEBUG) Serial.printf("<RSSI: %d>\n", _RSSI = WiFi.RSSI());
+if (DEBUG) Serial.printf("<UBAT: %umV>\n", _UBAT = analogReadMilliVolts(VBAT_ADC1_SENSE_PIN));
 if (DEBUG) Serial.printf("<TP04: %u>\n", _TP04 = millis());   // typical TP04: 253 on esp32_1
     if (strcmp(temp_ext, "OTA")) {
         esp_wifi_stop();
