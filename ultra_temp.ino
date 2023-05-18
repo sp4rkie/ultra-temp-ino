@@ -78,13 +78,14 @@ this may not happen
 
 #include <GxEPD2_BW.h>
 #include <Fonts/FreeMonoBold24pt7b.h>
+#include <Fonts/FreeMono9pt7b.h>
 
 #define GxEPD2_DISPLAY_CLASS GxEPD2_BW
 #ifdef BIG_DISPLAY
 // 2.9" 296x128 
 #define GxEPD2_DRIVER_CLASS GxEPD2_290_T94_V2 // GDEM029T94  128x296, SSD1680, Waveshare 2.9" V2 variant
 #else
-// 2.13" 250×122   (width registered as 128?!?!)
+// 2.13" 250×122   
 #define GxEPD2_DRIVER_CLASS GxEPD2_213_BN // DEPG0213BN  128x250, SSD1680, TTGO T5 V2.4.1, V2.3.1
 #endif
 
@@ -154,13 +155,7 @@ GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> displ
  * display.setCursor(10, 54)
  */
 #define D_WIDTH  display.width()
-#ifdef BIG_DISPLAY
 #define D_HEIGHT display.height()
-#else
-// 2.13" 250×122 ePaper Display HAT für Raspberry Pi
-// display.height() lies (gives 128 NOT 122);
-#define D_HEIGHT (display.height() - 6)
-#endif
 
 _u16 ep_x, ep_y0, ep_y1;
 _u16 tbw, tbh;
@@ -194,7 +189,9 @@ setup()
     display.setRotation(3);                                 // rotation 1, 3 is landscape both
     display.setFont(&FreeMonoBold24pt7b);
     display.setTextColor(GxEPD_WHITE);
-    display.getTextBounds(_err[0], 0, 0, &tbx, &tby, &tbw, &tbh);   // bounding box for sample text 
+
+    // FreeMonoBold24pt7b.h
+    display.getTextBounds("00000", 0, 0, &tbx, &tby, &tbw, &tbh);   // choose some text suitable to calc the max bounding box
     ep_x = (D_WIDTH - tbw) / 2 - tbx;              
     ep_y0 = (D_HEIGHT - tbh * 2) / 3     - tby;
     ep_y1 = (D_HEIGHT - tbh * 2) / 3 * 2 - tby + tbh;
@@ -269,9 +266,10 @@ if (DEBUG) Serial.printf("<TP04: %u>\n", _TP04 = millis());   // typical TP04: 2
         esp_wifi_stop();
     }
 #ifdef TEST_BBOX
+    // print BBOX for a specific string calculated in getTextBounds()
     display.setTextColor(GxEPD_BLACK);
-    display.fillRect(ep_x + 2, ep_y0 - 30, tbw, tbh, GxEPD_WHITE);
-    display.fillRect(ep_x + 2, ep_y1 - 30, tbw, tbh, GxEPD_WHITE);
+    display.fillRect(ep_x + tbx, ep_y0 + tby, tbw, tbh, GxEPD_WHITE);
+    display.fillRect(ep_x + tbx, ep_y1 + tby, tbw, tbh, GxEPD_WHITE);
 #endif
     display.setCursor(ep_x, ep_y0);
     display.print(temp_ext);
@@ -279,12 +277,21 @@ if (DEBUG) Serial.printf("<TP04: %u>\n", _TP04 = millis());   // typical TP04: 2
     display.setCursor(ep_x, ep_y1);
     display.print(temp_int);
 #endif
+
+#define INTRA_STR_OFFS 17
+#define DISP_HEIGHT_OFFS 5
+
+    display.setFont(&FreeMono9pt7b);
+    display.setTextColor(GxEPD_WHITE);
+    display.setCursor(2, D_HEIGHT - DISP_HEIGHT_OFFS);
+    display.print(cmd + INTRA_STR_OFFS);
+
     display.display(bootCount != 1 && bootCount % FULL_REFRESH);    // false == full
     if (!strcmp(temp_ext, "OTA")) {
         myota(OTA_PERIOD);
     }
 if (DEBUG) Serial.printf("<TP05: %u>\n", _TP05 = millis());   // typical TP05: 1390 on esp32_1
-#if defined(ESP32_4) && DEBUG > 5       // -> new test dev
+#if defined(ESP32_4) && DEBUG > 1       // -> new test dev
     deep_sleep(10000000);
 #else
     deep_sleep(TIME_TO_SLEEP);
