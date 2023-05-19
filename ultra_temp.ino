@@ -207,15 +207,19 @@ setup()
 RTC_DATA_ATTR _i32 _RSSI;
 RTC_DATA_ATTR _u32 _TP04;
 RTC_DATA_ATTR _u32 _TP05;
-RTC_DATA_ATTR _u32 _UBAT;
+RTC_DATA_ATTR _u32 _VBAT;
 
 void 
 loop() 
 {
-    _i8p temp_ext;
-    _i8 temp_int[10];
     _u8 cnt;
+    _i8p date_ext;
+    _i8p temp_ext;
+    _i8p statmsg;
     _i8 cmd[64];
+    _i8 temp_int[10];
+    _i8 upperstat[64];
+    _i8 lowerstat[64];
 
 #ifdef TEMPRA
     /*
@@ -243,33 +247,66 @@ loop()
         Serial.printf("temp conversion not complete\n");
         sprintf(temp_int, "%s", _err[6]);
     }
+#else
+    snprintf(temp_int, _SZ(temp_int), "no int");
 #endif
 
-#ifdef TEMPRA
-//  snprintf(cmd, _SZ(cmd), "@temp" "@temp_" HOST "=" "%s", temp_int);
+    /*
+     * all status now delivered to server still originates from previous cycle
+     * since not all status from current cycle is available yet at this time
+     */
     snprintf(cmd, _SZ(cmd), "@temp" "@temp_" HOST "=" "%s/%d/%u/%u/%u", 
                                                       temp_int, 
                                                       _RSSI, 
                                                       _TP04, 
                                                       _TP05, 
-                                                      _UBAT);
-#else
-    snprintf(cmd, _SZ(cmd), "@temp");
-#endif
-    if (mysend(cmd, STD_TARGET_HOST, STD_TARGET_PORT, &temp_ext)) {
+                                                      _VBAT);
+    /*
+     * for consistency reasons the same is true for the lower status line
+     * as assembled here
+     */
+    snprintf(lowerstat, _SZ(lowerstat), "%d %u %u %u", 
+                                                    _RSSI, 
+                                                    _TP04, 
+                                                    _TP05, 
+                                                    _VBAT);
+    if (mysend(cmd, STD_TARGET_HOST, STD_TARGET_PORT, &statmsg)) {
 if (DEBUG) Serial.printf("mysend failed\n");
     }
+
     /*
-     * 4069 AT 2.90V VCC
-     * 3984 AT 2.80V VCC
-     * 3839 AT 2.70V VCC
+     * collect current status after mysend() but before esp_wifi_stop()
+     * to gain representative battery voltage and RSSI under regular load 
      */
-if (DEBUG) Serial.printf("<RSSI: %d>\n", _RSSI = WiFi.RSSI());
-if (DEBUG) Serial.printf("<UBAT: %umV>\n", _UBAT = analogReadMilliVolts(VBAT_ADC1_SENSE_PIN));
-if (DEBUG) Serial.printf("<TP04: %u>\n", _TP04 = millis());   // typical TP04: 253 on esp32_1
-    if (strcmp(temp_ext, "OTA")) {
+    _TP04 = millis();   // typical TP04: 253 on esp32_1
+    _RSSI = WiFi.RSSI();
+    _VBAT = analogReadMilliVolts(VBAT_ADC1_SENSE_PIN);
+
+    /*
+     * cut off Wi-Fi as soon as possible to save battery power 
+     */
+    if (strcmp(statmsg, "OTA")) {
         esp_wifi_stop();
     }
+    if (temp_ext = strtok(statmsg, "/")) {
+    } else {
+        temp_ext = "no ext";
+    }
+    // init this even if the prev failed already
+    if (date_ext = strtok(0, "/")) {
+    } else {
+        date_ext = "no date";
+    }
+    snprintf(upperstat, _SZ(upperstat), "%s %s %d", 
+                                                    HOST, 
+                                                    date_ext,
+                                                    bootCount);
+if (DEBUG > 1) {
+    Serial.printf("upperstat: %s\n", upperstat);
+    Serial.printf("temp_ext: %s\n", temp_ext);
+    Serial.printf("temp_int: %s\n", temp_int);
+    Serial.printf("lowerstat: %s\n", lowerstat);
+}
 #ifdef TEST_BBOX
     // print BBOX for a specific string calculated in getTextBounds()
     display.setTextColor(GxEPD_BLACK);
@@ -284,15 +321,22 @@ if (DEBUG) Serial.printf("<TP04: %u>\n", _TP04 = millis());   // typical TP04: 2
 #endif
 
 #define INTRA_STR_OFFS 17
-#define DISP_HEIGHT_OFFS 5
+#define DISP_X_OFFS 3
+#define DISP_Y0_OFFS 12
+#define DISP_Y1_OFFS (D_HEIGHT - 5)
 
     display.setFont(&FreeMono9pt7b);
     display.setTextColor(GxEPD_WHITE);
-    display.setCursor(2, D_HEIGHT - DISP_HEIGHT_OFFS);
-    display.print(cmd + INTRA_STR_OFFS);
+    display.setCursor(DISP_X_OFFS, DISP_Y0_OFFS);
+    display.print(upperstat);
+    display.setCursor(DISP_X_OFFS, DISP_Y1_OFFS);
+    display.print(lowerstat);
 
     display.display(bootCount != 1 && bootCount % FULL_REFRESH);    // false == full
-    if (!strcmp(temp_ext, "OTA")) {
+    /*
+     * wait with start of OTA (if applicable) to have an updated display meanwhile
+     */
+    if (!strcmp(statmsg, "OTA")) {
         myota(OTA_PERIOD);
     }
 if (DEBUG) Serial.printf("<TP05: %u>\n", _TP05 = millis());   // typical TP05: 1390 on esp32_1

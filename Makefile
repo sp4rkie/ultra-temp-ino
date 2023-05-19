@@ -53,7 +53,7 @@ UPLOAD_SPEED = 2000000
 #1
 UPLOAD_PORT = /dev/serial/by-id/usb-Silicon_Labs_CP2104_USB_to_UART_Bridge_Controller_0255CF15-if00-port0
 #2
-UPLOAD_PORT = /dev/serial/by-id/usb-Silicon_Labs_CP2104_USB_to_UART_Bridge_Controller_02EXVH5I-if00-port0
+#UPLOAD_PORT = /dev/serial/by-id/usb-Silicon_Labs_CP2104_USB_to_UART_Bridge_Controller_02EXVH5I-if00-port0
 
 ESP_ROOT = $(HOME)/esp32
 LIBS = $(HOME)/Arduino/libraries
