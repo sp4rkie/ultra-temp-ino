@@ -34,19 +34,18 @@
  *
  */
 
-#ifdef ESP32_4                          // -> new test dev
-#define DEBUG   1
-#define VBAT_ADC1_GND_PIN    22              // use a dynamic ground to effectively void its deep sleep current
-#define VBAT_ADC1_SENSE_PIN  36
+#ifdef ESP32_4                          // test dev
+#define DEBUG   0
+#define VBAT_ADC1_GND_PIN    22         // use a dynamic ground to effectively void its deep sleep current
+#define VBAT_ADC1_SENSE_PIN  36         // connected to voltage divider
 #else
-#define DEBUG   1
-#define VBAT_ADC1_GND_PIN    22              // use a dynamic ground to effectively void its deep sleep current
+#define DEBUG   0                       // regular devs
+#define VBAT_ADC1_GND_PIN    22         
 #define VBAT_ADC1_SENSE_PIN  36
 #endif
 
-#define TEMPRA 32                       // one wire pin
+#define TEMPRA 32                       // one wire pin for internal temp sensor
 #define TIME_TO_SLEEP  600000000        // 600s == 10min
-// max:               4294967295        // 0xFFFFFFFF
 
 #include "mlcf.h"
 #ifdef MCFG_LOCAL
@@ -66,7 +65,7 @@ OneWire oneWire(TEMPRA);
 DallasTemperature sensors(&oneWire);
 #endif
 
-#if defined(ESP32_1)    // -> new USY
+#if defined(ESP32_1)    // -> new usy
 #define BIG_DISPLAY
 #elif defined(ESP32_3)
 #elif defined(ESP32_4)  // -> new test dev
@@ -169,7 +168,7 @@ void
 deep_sleep(_u32 time_to_sleep)
 {
     display.hibernate(); // avoid writing crap to display
-if (DEBUG) Serial.printf("sleeping for %us\n", time_to_sleep / 1000000);
+if (DEBUG > 1) Serial.printf("sleeping for %us\n", time_to_sleep / 1000000);
     esp_sleep_enable_timer_wakeup(time_to_sleep);
     esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
     esp_deep_sleep_start();
@@ -265,11 +264,11 @@ loop()
      * for consistency reasons the same is true for the lower status line
      * as assembled here
      */
-    snprintf(lowerstat, _SZ(lowerstat), "%d %u %u %u", 
+    snprintf(lowerstat, _SZ(lowerstat), "%d %u %u %u.%02uV", 
                                                     _RSSI, 
                                                     _TP04, 
                                                     _TP05, 
-                                                    _VBAT);
+                                                    _VBAT / 1000, _VBAT / 10 % 100);
     if (mysend(cmd, STD_TARGET_HOST, STD_TARGET_PORT, &statmsg)) {
 if (DEBUG) Serial.printf("mysend failed\n");
     }
@@ -278,9 +277,10 @@ if (DEBUG) Serial.printf("mysend failed\n");
      * collect current status after mysend() but before esp_wifi_stop()
      * to gain representative battery voltage and RSSI under regular load 
      */
-    _TP04 = millis();   // typical TP04: 253 on esp32_1
     _RSSI = WiFi.RSSI();
-    _VBAT = analogReadMilliVolts(VBAT_ADC1_SENSE_PIN);
+    _VBAT = analogReadMilliVolts(VBAT_ADC1_SENSE_PIN) << 1; // compensate for 1:1 voltage divider
+    _TP04 = millis();       // time since wakeup in high current mode, typical 253 on esp32_1
+if (DEBUG > 1) Serial.printf("<TP04: %u>\n", _TP04);
 
     /*
      * cut off Wi-Fi as soon as possible to save battery power 
@@ -339,7 +339,8 @@ if (DEBUG > 1) {
     if (!strcmp(statmsg, "OTA")) {
         myota(OTA_PERIOD);
     }
-if (DEBUG) Serial.printf("<TP05: %u>\n", _TP05 = millis());   // typical TP05: 1390 on esp32_1
+    _TP05 = millis();                   // typical TP05: 1390 on esp32_1
+if (DEBUG > 1) Serial.printf("<TP05: %u>\n", _TP05);
 #if defined(ESP32_4) && DEBUG > 1       // -> new test dev
     deep_sleep(10000000);
 #else
